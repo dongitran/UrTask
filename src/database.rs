@@ -1,9 +1,19 @@
 use mongodb::{Client as MongoClient, options::ClientOptions};
-use mongodb::bson::{doc, Document};
+use mongodb::bson::{doc, Document, DateTime};
 use mongodb::options::UpdateOptions;
 use chrono::Utc;
 use crate::trello::TrelloConfig;
 use std::error::Error;
+use serde::{Serialize, Deserialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ConfigLog {
+    user_id: i64,
+    board: String,
+    key: String,
+    token: String,
+    timestamp: DateTime,
+}
 
 pub async fn save_config_to_mongodb(
     config: &TrelloConfig,
@@ -40,6 +50,26 @@ pub async fn save_config_to_mongodb(
         let options = UpdateOptions::builder().upsert(true).build();
         collection.update_one(filter, update, options).await?;
     }
+
+    // Log the config change
+    log_config_change(config, &client).await?;
+
+    Ok(())
+}
+
+async fn log_config_change(config: &TrelloConfig, client: &MongoClient) -> Result<(), Box<dyn Error>> {
+    let database = client.database("urtask");
+    let log_collection = database.collection::<ConfigLog>("config_logs");
+
+    let log_entry = ConfigLog {
+        user_id: config.user_id,
+        board: config.board.clone(),
+        key: config.key.clone(),
+        token: config.token.clone(),
+        timestamp: DateTime::now(),
+    };
+
+    log_collection.insert_one(log_entry, None).await?;
 
     Ok(())
 }
