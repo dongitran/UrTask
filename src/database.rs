@@ -15,6 +15,12 @@ struct ConfigLog {
     timestamp: DateTime,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct ReportedTask {
+    task_id: String,
+    reported_at: DateTime,
+}
+
 pub async fn save_config_to_mongodb(
     config: &TrelloConfig,
     connection_string: &str
@@ -51,7 +57,6 @@ pub async fn save_config_to_mongodb(
         collection.update_one(filter, update, options).await?;
     }
 
-    // Log the config change
     log_config_change(config, &client).await?;
 
     Ok(())
@@ -72,4 +77,28 @@ async fn log_config_change(config: &TrelloConfig, client: &MongoClient) -> Resul
     log_collection.insert_one(log_entry, None).await?;
 
     Ok(())
+}
+
+pub async fn save_reported_task(client: &MongoClient, task_id: &str) -> Result<(), Box<dyn Error>> {
+    let database = client.database("urtask");
+    let collection = database.collection::<ReportedTask>("reported_tasks");
+
+    let reported_task = ReportedTask {
+        task_id: task_id.to_string(),
+        reported_at: DateTime::now(),
+    };
+
+    collection.insert_one(reported_task, None).await?;
+
+    Ok(())
+}
+
+pub async fn is_task_reported(client: &MongoClient, task_id: &str) -> Result<bool, Box<dyn Error>> {
+    let database = client.database("urtask");
+    let collection = database.collection::<ReportedTask>("reported_tasks");
+
+    let filter = doc! { "task_id": task_id };
+    let result = collection.find_one(filter, None).await?;
+
+    Ok(result.is_some())
 }
