@@ -1,10 +1,10 @@
-use mongodb::{Client as MongoClient, options::ClientOptions};
-use mongodb::bson::{doc, Document, DateTime};
+use mongodb::{ Client as MongoClient, options::ClientOptions };
+use mongodb::bson::{ doc, Document, DateTime };
 use mongodb::options::UpdateOptions;
 use chrono::Utc;
 use crate::trello::TrelloConfig;
 use std::error::Error;
-use serde::{Serialize, Deserialize};
+use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Serialize, Deserialize)]
 struct ConfigLog {
@@ -19,6 +19,12 @@ struct ConfigLog {
 struct ReportedTask {
     task_id: String,
     reported_at: DateTime,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ErrorLog {
+    message: String,
+    timestamp: DateTime,
 }
 
 pub async fn save_config_to_mongodb(
@@ -39,7 +45,8 @@ pub async fn save_config_to_mongodb(
     let existing_doc = collection.find_one(filter.clone(), None).await?;
 
     if existing_doc.is_some() {
-        let update = doc! {
+        let update =
+            doc! {
             "$set": {
                 "board": &config.board,
                 "key": &config.key,
@@ -62,7 +69,10 @@ pub async fn save_config_to_mongodb(
     Ok(())
 }
 
-async fn log_config_change(config: &TrelloConfig, client: &MongoClient) -> Result<(), Box<dyn Error>> {
+async fn log_config_change(
+    config: &TrelloConfig,
+    client: &MongoClient
+) -> Result<(), Box<dyn Error>> {
     let database = client.database("urtask");
     let log_collection = database.collection::<ConfigLog>("config_logs");
 
@@ -79,7 +89,10 @@ async fn log_config_change(config: &TrelloConfig, client: &MongoClient) -> Resul
     Ok(())
 }
 
-pub async fn save_reported_task(client: &MongoClient, task_id: &str) -> Result<(), Box<dyn Error>> {
+pub async fn save_reported_task(
+    client: &MongoClient,
+    task_id: &str
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     let database = client.database("urtask");
     let collection = database.collection::<ReportedTask>("reported_tasks");
 
@@ -93,7 +106,10 @@ pub async fn save_reported_task(client: &MongoClient, task_id: &str) -> Result<(
     Ok(())
 }
 
-pub async fn is_task_reported(client: &MongoClient, task_id: &str) -> Result<bool, Box<dyn Error>> {
+pub async fn is_task_reported(
+    client: &MongoClient,
+    task_id: &str
+) -> Result<bool, Box<dyn Error + Send + Sync>> {
     let database = client.database("urtask");
     let collection = database.collection::<ReportedTask>("reported_tasks");
 
@@ -101,4 +117,21 @@ pub async fn is_task_reported(client: &MongoClient, task_id: &str) -> Result<boo
     let result = collection.find_one(filter, None).await?;
 
     Ok(result.is_some())
+}
+
+pub async fn log_error(
+    client: &MongoClient,
+    error_message: &str
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let database = client.database("urtask");
+    let collection = database.collection::<ErrorLog>("error_logs");
+
+    let error_log = ErrorLog {
+        message: error_message.to_string(),
+        timestamp: DateTime::now(),
+    };
+
+    collection.insert_one(error_log, None).await?;
+
+    Ok(())
 }
