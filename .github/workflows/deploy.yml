@@ -1,4 +1,4 @@
-name: Deploy
+name: Docker Build and Push
 
 on:
   push:
@@ -9,13 +9,36 @@ on:
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  TELEGRAM_GROUP_DEPLOYMENTS: ${{ secrets.TELEGRAM_GROUP_DEPLOYMENTS }}
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
 jobs:
-  build-and-push:
+  send-notification-started:
     runs-on: ubuntu-latest
-
     steps:
-    - uses: actions/checkout@v3
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ env.TELEGRAM_GROUP_DEPLOYMENTS }}
+          token: ${{ env.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *🚀 UrTask * 🏃‍♂️${{ github.run_number }}
+
+            *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
+            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📦 Repository:* ${{ github.repository }}
+            *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+            Started 🚁️️️️️️🚁️️️️️️🚁️️️️️️🚁️️️️️️
+
+  build:
+    needs: notify-start
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
@@ -27,10 +50,57 @@ jobs:
         password: ${{ env.DOCKER_PASSWORD }}
 
     - name: Build and push Docker image
+      id: docker_build
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
-        tags: ${{ secrets.DOCKER_USERNAME }}/urtask:latest
-        cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/urtask:buildcache
-        cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/urtask:buildcache,mode=max
+        tags: ${{ env.DOCKER_USERNAME }}/urtask:latest
+        cache-from: type=registry,ref=${{ env.DOCKER_USERNAME }}/urtask:buildcache
+        cache-to: type=registry,ref=${{ env.DOCKER_USERNAME }}/urtask:buildcache,mode=max
+
+  send-notification-build-failed:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ failure() && needs.build.result == 'failure' }}
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ env.TELEGRAM_GROUP_DEPLOYMENTS }}
+          token: ${{ env.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *❌ UrTask * 🏃‍♂️${{ github.run_number }}
+
+            *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
+            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📦 Repository:* ${{ github.repository }}
+            *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+            *Build Failed*
+            😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️
+
+  send-notification-successful:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ success() && needs.build.result == 'success' }}
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ env.TELEGRAM_GROUP_DEPLOYMENTS }}
+          token: ${{ env.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *🎉 UrTask * 🏃‍♂️${{ github.run_number }}
+
+            *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
+            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📦 Repository:* ${{ github.repository }}
+            *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+            *Build Successful*
+            🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️
