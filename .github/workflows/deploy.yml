@@ -27,14 +27,14 @@ jobs:
             *🚀 UrTask * 🏃‍♂️${{ github.run_number }}
 
             *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
-            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📝 Commit message:* ${{ github.event.head_commit.message }}
             *📦 Repository:* ${{ github.repository }}
             *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
 
             Started 🚁️️️️️️🚁️️️️️️🚁️️️️️️🚁️️️️️️
 
   build:
-    needs: notify-start
+    needs: send-notification-started
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -62,7 +62,7 @@ jobs:
   send-notification-build-failed:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ failure() && needs.build.result == 'failure' }}
+    if: failure()
     steps:
       - name: Send Telegram Notification
         uses: appleboy/telegram-action@master
@@ -75,7 +75,7 @@ jobs:
             *❌ UrTask * 🏃‍♂️${{ github.run_number }}
 
             *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
-            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📝 Commit message:* ${{ github.event.head_commit.message }}
             *📦 Repository:* ${{ github.repository }}
             *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
 
@@ -85,7 +85,7 @@ jobs:
   send-notification-successful:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ success() && needs.build.result == 'success' }}
+    if: success()
     steps:
       - name: Send Telegram Notification
         uses: appleboy/telegram-action@master
@@ -98,7 +98,7 @@ jobs:
             *🎉 UrTask * 🏃‍♂️${{ github.run_number }}
 
             *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
-            *📝 Commit message:* ${{ github.event.commits[0].message }}
+            *📝 Commit message:* ${{ github.event.head_commit.message }}
             *📦 Repository:* ${{ github.repository }}
             *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
 
