@@ -37,6 +37,15 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 
 ## Getting Started
 
+### Prerequisites
+
+- Rust (latest stable version)
+- MongoDB
+- A Trello account with API key and token
+- A Telegram bot token
+
+### Installation and Setup
+
 1. Clone the repository:
    ```
    git clone https://github.com/yourusername/urtask.git
@@ -54,16 +63,32 @@ UrTask is an automated tool designed to streamline the process of daily reportin
    TELEGRAM_BOT_TOKEN=your_telegram_bot_token
    ```
 
-4. Install dependencies:
+4. Install dependencies and run:
    ```
    cargo build
+   cargo run
    ```
 
-4. Run:
-    ```
-    cargo run
-    ```
+### Using the Bot
 
+1. Start a chat with your Telegram bot.
+2. Use the `/setconfig` command followed by your Trello board ID, API key, and token:
+   ```
+   /setconfig your_board_id-your_api_key-your_api_token
+   ```
+3. The bot will confirm successful configuration and start sending daily reports at the scheduled time.
+
+## Troubleshooting
+
+- If you're not receiving messages, check your Telegram bot token and ensure the bot has been started in your Telegram client.
+- For database connection issues, verify your MongoDB connection string in the `.env` file.
+- Make sure your Trello API key and token have the necessary permissions to access your board.
+
+For more detailed troubleshooting, check the application logs or file an issue on the GitHub repository.
+
+## Contributing
+
+We welcome contributions to UrTask! Please read our contributing guidelines to get started.
 
 ## License
 
