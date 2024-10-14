@@ -2,15 +2,16 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "deploy" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "deploy" ]
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
   DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
   TELEGRAM_GROUP_DEPLOYMENTS: ${{ secrets.TELEGRAM_GROUP_DEPLOYMENTS }}
   TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  KUBE_CONFIG_K8S_LOCAL: ${{ secrets.KUBE_CONFIG_K8S_LOCAL }}
 
 jobs:
   send-notification-started:
@@ -82,8 +83,52 @@ jobs:
             *Build Failed*
             😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️
 
-  send-notification-successful:
+  deploy:
     needs: build
+    if: ${{ success() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up kubectl
+        uses: azure/k8s-set-context@v1
+        with:
+          kubeconfig: ${{ env.KUBE_CONFIG_K8S_LOCAL }}
+          version: "latest"
+
+      - name: Apply Kubernetes deployment
+        run: |
+          sed -i 's/{latest}/${{ github.run_number }}/g' ./deployment/main.yaml
+          kubectl apply -f ./deployment/namespace.yaml --validate=false
+          kubectl apply -f ./deployment/service-account.yaml --validate=false
+          kubectl apply -f ./deployment/main.yaml --validate=false
+
+  send-notification-failed:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ env.TELEGRAM_GROUP_DEPLOYMENTS }}
+          token: ${{ env.TELEGRAM_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *❌ UrTask * 🏃‍♂️${{ github.run_number }}
+
+            *👤 Committer:* [${{ github.actor }}](https://github.com/${{ github.actor }})
+            *📝 Commit message:* ${{ github.event.head_commit.message }}
+            *📦 Repository:* ${{ github.repository }}
+            *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
+
+            *Deployment Failed*
+            😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️😐️️️️️️
+
+  send-notification-successful:
+    needs: deploy
     runs-on: ubuntu-latest
     if: success()
     steps:
@@ -102,5 +147,5 @@ jobs:
             *📦 Repository:* ${{ github.repository }}
             *🔍 See changes:* [View changes](https://github.com/${{ github.repository }}/commit/${{github.sha}})
 
-            *Build Successful*
+            *Deployment Successful*
             🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️🚀️️️️️️
