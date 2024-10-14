@@ -58,7 +58,7 @@ pub async fn get_trello_cards(config: &TrelloConfig) -> Result<Vec<TrelloCard>, 
     }
 
     let response_text = response.text().await?;
-    println!("Trello API response for cards: {}", response_text);
+    //println!("Trello API response for cards: {}", response_text);
 
     let cards: Vec<TrelloCard> = serde_json::from_str(&response_text)
         .map_err(|e| AppError::from(format!("Failed to parse Trello cards: {}", e)))?;
