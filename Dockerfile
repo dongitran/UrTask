@@ -24,6 +24,4 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=builder /usr/src/urtask/target/release/urtask /usr/local/bin/urtask
 
-COPY .env* ./
-
-CMD ["urtask"]
+CMD ["/bin/bash", "-c", ". /vault/secrets/env-config && exec urtask"]
