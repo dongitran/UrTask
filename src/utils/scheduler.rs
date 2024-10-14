@@ -2,21 +2,32 @@ use crate::config::Config;
 use crate::services::{ database, trello, telegram };
 use crate::error::AppError;
 use crate::models::trello::{ TrelloConfig, TrelloCard };
-use std::time::Duration;
-use tokio::time;
 use std::sync::Arc;
+use tokio_cron_scheduler::{ Job, JobScheduler };
+use chrono::{ Local, Datelike, FixedOffset, TimeZone };
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
-    println!("Scheduler started"); // Thêm dòng này để debug
-    let mut interval = time::interval(Duration::from_secs(60)); // Chạy mỗi phút thay vì 10 phút
+    let scheduler = JobScheduler::new().await?;
 
-    loop {
-        interval.tick().await;
-        println!("Running cron job"); // Thêm dòng này để debug
-        if let Err(e) = run_cron_job(&config).await {
-            eprintln!("Error in cron job: {:?}", e);
-        }
-    }
+    let gmt7 = FixedOffset::east(7 * 3600);
+
+    scheduler.add(
+        Job::new_async("0 2 * * 1-5", move |_, _| {
+            let config = config.clone();
+            Box::pin(async move {
+                let now = gmt7.from_utc_datetime(&Local::now().naive_utc());
+                if now.hour() == 9 {
+                    if let Err(e) = run_cron_job(&config).await {
+                        eprintln!("Error in cron job: {:?}", e);
+                    }
+                }
+            })
+        })?
+    ).await?;
+
+    scheduler.start().await?;
+
+    Ok(())
 }
 
 async fn run_cron_job(config: &Config) -> Result<(), AppError> {
@@ -96,22 +107,16 @@ fn generate_report_message(
     doing_cards: &[TrelloCard],
     done_cards: &[&TrelloCard]
 ) -> String {
-    let mut message = String::from("");
+    let yesterday = Local::now().date().pred().format("%d/%m").to_string();
+    let mut message = format!("Hôm trước ({}):\n", yesterday);
 
-    if !done_cards.is_empty() {
-        message.push_str("Công việc đã hoàn thành:\n");
-        for card in done_cards {
-            message.push_str(&format!("- {}\n", card.name));
-        }
-        message.push_str("\n");
+    for card in done_cards {
+        message.push_str(&format!("* {}\n", card.name));
     }
 
-    if !doing_cards.is_empty() {
-        message.push_str("Công việc đang thực hiện:\n");
-        for card in doing_cards {
-            message.push_str(&format!("- {}\n", card.name));
-        }
-        message.push_str("\n");
+    message.push_str("\nHôm nay:\n");
+    for card in doing_cards {
+        message.push_str(&format!("* {}\n", card.name));
     }
 
     message
