@@ -3,8 +3,8 @@ use crate::services::{ database, trello, telegram };
 use crate::error::AppError;
 use crate::models::trello::{ TrelloConfig, TrelloCard };
 use std::sync::Arc;
-use tokio_cron_scheduler::{ Job, JobScheduler };
-use chrono::{ Local, Datelike, FixedOffset, TimeZone };
+use tokio_cron_scheduler::{Job, JobScheduler};
+use chrono::{Local, Datelike, FixedOffset, TimeZone};
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let scheduler = JobScheduler::new().await?;
@@ -12,14 +12,13 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let gmt7 = FixedOffset::east(7 * 3600);
 
     scheduler.add(
-        Job::new_async("0 2 * * 1-5", move |_, _| {
+        Job::new_async("* * * * *", move |_, _| {
             let config = config.clone();
             Box::pin(async move {
                 let now = gmt7.from_utc_datetime(&Local::now().naive_utc());
-                if now.hour() == 9 {
-                    if let Err(e) = run_cron_job(&config).await {
-                        eprintln!("Error in cron job: {:?}", e);
-                    }
+                println!("Running cron job at {:?}", now);
+                if let Err(e) = run_cron_job(&config).await {
+                    eprintln!("Error in cron job: {:?}", e);
                 }
             })
         })?
