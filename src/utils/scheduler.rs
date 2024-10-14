@@ -50,9 +50,6 @@ async fn process_user_config(
     bot_token: &str,
     client: &mongodb::Client
 ) -> Result<(), AppError> {
-    println!("Processing config for user {}", config.user_id);
-    println!("Board: {}, Key: {}, Token: {}", config.board, config.key, config.token);
-
     let (todo_id, doing_id, done_id) = trello::check_trello_lists(config).await?;
     println!("List IDs - ToDo: {}, Doing: {}, Done: {}", todo_id, doing_id, done_id);
 
@@ -99,7 +96,7 @@ fn generate_report_message(
     doing_cards: &[TrelloCard],
     done_cards: &[&TrelloCard]
 ) -> String {
-    let mut message = String::from("Báo cáo công việc:\n\n");
+    let mut message = String::from("");
 
     if !done_cards.is_empty() {
         message.push_str("Công việc đã hoàn thành:\n");
@@ -115,13 +112,6 @@ fn generate_report_message(
             message.push_str(&format!("- {}\n", card.name));
         }
         message.push_str("\n");
-    }
-
-    if !todo_cards.is_empty() {
-        message.push_str("Công việc cần làm:\n");
-        for card in todo_cards {
-            message.push_str(&format!("- {}\n", card.name));
-        }
     }
 
     message
