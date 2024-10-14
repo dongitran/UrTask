@@ -1,10 +1,3 @@
-mod config;
-mod error;
-mod models;
-mod services;
-mod handlers;
-mod utils;
-
 use crate::config::Config;
 use crate::utils::scheduler::run_scheduler;
 use dotenv::dotenv;
@@ -28,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .endpoint(handlers::command::answer),
         );
 
-    let mut dispatcher = Dispatcher::builder(bot, handler)
+    let dispatcher = Dispatcher::builder(bot, handler)
         .dependencies(dptree::deps![mongodb_client])
         .enable_ctrlc_handler()
         .build();
