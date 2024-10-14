@@ -42,12 +42,12 @@ jobs:
       - name: Apply Kubernetes deployment
         env:
           MONGODB_CONNECTION_STRING: ${{ secrets.MONGODB_CONNECTION_STRING }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          URTASK_BOT_TOKEN: ${{ secrets.URTASK_BOT_TOKEN }}
         run: |
           kubectl exec -n vault -i vault-0 -- vault kv put \
             kv/urtask-dev \
             MONGODB_CONNECTION_STRING="${MONGODB_CONNECTION_STRING}" \
-            TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
+            URTASK_BOT_TOKEN="${URTASK_BOT_TOKEN}"
 
           kubectl exec -n vault -i vault-0 -- vault policy write urtask-svc-policy - <<EOH
           path "kv/data/urtask-dev" {

@@ -60,7 +60,7 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 3. Edit the `.env` file with your specific configuration:
    ```
    MONGODB_CONNECTION_STRING=your_mongodb_connection_string
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+   URTASK_BOT_TOKEN=your_telegram_bot_token
    ```
 
 4. Install dependencies and run:
