@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     println!("Scheduler started"); // Thêm dòng này để debug
-    let mut interval = time::interval(Duration::from_secs(4)); // Chạy mỗi phút thay vì 10 phút
+    let mut interval = time::interval(Duration::from_secs(60)); // Chạy mỗi phút thay vì 10 phút
 
     loop {
         interval.tick().await;
