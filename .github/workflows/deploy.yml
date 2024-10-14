@@ -107,7 +107,7 @@ jobs:
   send-notification-failed:
     needs: deploy
     runs-on: ubuntu-latest
-    if: success()
+    if: failure()
     steps:
       - name: Send Telegram Notification
         uses: appleboy/telegram-action@master
