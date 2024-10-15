@@ -11,41 +11,50 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("0 35 2 * * 1-5", move |_, _| {
+        Job::new_async("0 35 2 * * 1-5", {
             let config = config.clone();
-            Box::pin(async move {
-                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
-                println!("Running cron job at {:?}", now);
-                if let Err(e) = run_cron_job(&config).await {
-                    eprintln!("Error in cron job: {:?}", e);
-                }
-            })
+            move |_, _| {
+                let config = config.clone();
+                Box::pin(async move {
+                    let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                    println!("Running cron job at {:?}", now);
+                    if let Err(e) = run_cron_job(&config).await {
+                        eprintln!("Error in cron job: {:?}", e);
+                    }
+                })
+            }
         })?
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 15 2 * * 1-5", move |_, _| {
+        Job::new_async("0 15 2 * * 1-5", {
             let config = config.clone();
-            Box::pin(async move {
-                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
-                println!("Running morning reminder job at {:?}", now);
-                if let Err(e) = run_reminder_job(&config, "morning").await {
-                    eprintln!("Error in morning reminder job: {:?}", e);
-                }
-            })
+            move |_, _| {
+                let config = config.clone();
+                Box::pin(async move {
+                    let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                    println!("Running morning reminder job at {:?}", now);
+                    if let Err(e) = run_reminder_job(&config, "morning").await {
+                        eprintln!("Error in morning reminder job: {:?}", e);
+                    }
+                })
+            }
         })?
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 0 10 * * 1-5", move |_, _| {
+        Job::new_async("0 0 10 * * 1-5", {
             let config = config.clone();
-            Box::pin(async move {
-                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
-                println!("Running evening reminder job at {:?}", now);
-                if let Err(e) = run_reminder_job(&config, "evening").await {
-                    eprintln!("Error in evening reminder job: {:?}", e);
-                }
-            })
+            move |_, _| {
+                let config = config.clone();
+                Box::pin(async move {
+                    let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                    println!("Running evening reminder job at {:?}", now);
+                    if let Err(e) = run_reminder_job(&config, "evening").await {
+                        eprintln!("Error in evening reminder job: {:?}", e);
+                    }
+                })
+            }
         })?
     ).await?;
 
