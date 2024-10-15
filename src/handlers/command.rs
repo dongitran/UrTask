@@ -5,18 +5,30 @@ use crate::models::trello::TrelloConfig;
 use crate::error::AppError;
 
 #[derive(BotCommands, Clone)]
-#[command(rename_rule = "lowercase", description = "These commands are supported:")]
+#[command(rename_rule = "lowercase", description = "UrTask Bot supports the following commands:")]
 pub enum Command {
-    #[command(description = "display this text")]
+    #[command(description = "Show the list of available commands")]
     Help,
-    #[command(description = "set Trello configuration")] 
-    SetConfig(String),
+    #[command(
+        description = "Set up your Trello configuration. Usage: /setconfig board_id-api_key-api_token"
+    )] SetConfig(String),
 }
 
-pub async fn answer(bot: Bot, msg: Message, cmd: Command, mongodb_client: mongodb::Client) -> ResponseResult<()> {
+pub async fn answer(
+    bot: Bot,
+    msg: Message,
+    cmd: Command,
+    mongodb_client: mongodb::Client
+) -> ResponseResult<()> {
     match cmd {
         Command::Help => {
-            bot.send_message(msg.chat.id, Command::descriptions().to_string()).await?;
+            bot.send_message(
+                msg.chat.id,
+                "UrTask Bot helps you manage your Trello tasks and send daily reports. Available commands:\n\n\
+                /help - Show this help message\n\
+                /setconfig - Set up your Trello configuration. Usage: /setconfig board_id-api_key-api_token\n\n\
+                After setting up, you'll receive daily reports of your Trello tasks at 7:31 AM (GMT+7)."
+            ).await?;
         }
         Command::SetConfig(config_str) => {
             let user_id = msg.chat.id.0;
@@ -32,7 +44,10 @@ pub async fn answer(bot: Bot, msg: Message, cmd: Command, mongodb_client: mongod
                     bot.send_message(msg.chat.id, message).await?;
                 }
                 Err(e) => {
-                    bot.send_message(msg.chat.id, format!("Error setting config: {}. Please use the format 'board-key-token'.", e)).await?;
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Error setting config: {}. Please use the format 'board-key-token'.", e)
+                    ).await?;
                 }
             }
         }
@@ -59,7 +74,9 @@ async fn save_config(client: &mongodb::Client, config: &TrelloConfig) -> Result<
 }
 
 fn parse_trello_config(config_str: &str, user_id: i64) -> Result<TrelloConfig, String> {
-    let parts: Vec<&str> = config_str.split('-').collect::<Vec<&str>>()
+    let parts: Vec<&str> = config_str
+        .split('-')
+        .collect::<Vec<&str>>()
         .iter()
         .map(|&s| s.trim())
         .filter(|&s| !s.is_empty())
