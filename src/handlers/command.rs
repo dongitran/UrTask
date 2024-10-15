@@ -1,6 +1,6 @@
 use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
-use crate::services::database;
+use crate::services::{ database, trello };
 use crate::models::trello::TrelloConfig;
 use crate::error::AppError;
 
@@ -14,6 +14,8 @@ pub enum Command {
     #[command(
         description = "Set up your Trello configuration. Usage: /setconfig board_id-api_key-api_token"
     )] SetConfig(String),
+    #[command(description = "Test your current Trello configuration")]
+    TestConfig,
 }
 
 pub async fn answer(
@@ -43,29 +45,64 @@ pub async fn answer(
         Command::Help => {
             bot.send_message(
                 msg.chat.id,
-                "UrTask Bot helps you manage your Trello tasks and send daily reports. Available commands:\n\n\
-                /help - Show this help message\n\
-                /setconfig - Set up your Trello configuration. Usage: /setconfig board_id-api_key-api_token\n\n\
-                After setting up, you'll receive daily reports of your Trello tasks at 9:30 AM (GMT+7)."
+                "🤖 UrTask Bot helps you manage your Trello tasks and send daily reports. Available commands:\n\n\
+              🚀 /start - Get started with UrTask Bot\n\n\
+              ❓ /help - Show this help message\n\n\
+              ⚙️ /setconfig - Set up your Trello configuration.\n Usage: /setconfig board_id-api_key-api_token\n\n\
+              🧪 /testconfig - Test your current Trello configuration\n\n\n\
+              📅 After setting up, you'll receive:\n\
+              • Daily reports at 9:35 AM (GMT+7)\n\
+              • Morning reminders at 9:15 AM (GMT+7)\n\
+              • Evening reminders at 5:00 PM (GMT+7)\n\n\
+              All scheduled messages are sent on weekdays (Monday to Friday) only."
             ).await?;
         }
         Command::SetConfig(config_str) => {
             let user_id = msg.chat.id.0;
             match parse_trello_config(&config_str, user_id) {
                 Ok(config) => {
-                    let message = match save_config(&mongodb_client, &config).await {
-                        Ok(_) => "Trello configuration set successfully!",
+                    match database::save_trello_config(&mongodb_client, &config).await {
+                        Ok(_) => {
+                            bot.send_message(
+                                msg.chat.id,
+                                "✅ Trello configuration saved. Testing configuration..."
+                            ).await?;
+                            test_trello_config(&bot, msg.chat.id, &config).await?;
+                        }
                         Err(e) => {
                             eprintln!("Error: {}", e);
-                            "Error setting Trello configuration. Please try again later."
+                            bot.send_message(
+                                msg.chat.id,
+                                "❌ Error setting Trello configuration. Please try again later."
+                            ).await?;
                         }
-                    };
-                    bot.send_message(msg.chat.id, message).await?;
+                    }
                 }
                 Err(e) => {
                     bot.send_message(
                         msg.chat.id,
-                        format!("Error setting config: {}. Please use the format 'board-key-token'.", e)
+                        format!("❌ Error setting config: {}. Please use the format: /setconfig board_id-api_key-api_token", e)
+                    ).await?;
+                }
+            }
+        }
+        Command::TestConfig => {
+            let user_id = msg.chat.id.0;
+            match database::get_trello_config(&mongodb_client, user_id).await {
+                Ok(Some(config)) => {
+                    test_trello_config(&bot, msg.chat.id, &config).await?;
+                }
+                Ok(None) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        "❌ No Trello configuration found. Please set up your configuration using /setconfig"
+                    ).await?;
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    bot.send_message(
+                        msg.chat.id,
+                        "❌ Error retrieving Trello configuration. Please try again later."
                     ).await?;
                 }
             }
@@ -117,4 +154,28 @@ fn parse_trello_config(config_str: &str, user_id: i64) -> Result<TrelloConfig, S
         token: token.to_string(),
         user_id,
     })
+}
+
+async fn test_trello_config(
+    bot: &Bot,
+    chat_id: ChatId,
+    config: &TrelloConfig
+) -> ResponseResult<()> {
+    match trello::check_trello_lists(config).await {
+        Ok((todo_id, doing_id, done_id)) => {
+            let message = format!(
+                "✅ Trello configuration is valid!\n\nBoard ID: {}\nToDo List ID: {}\nDoing List ID: {}\nDone List ID: {}",
+                config.board,
+                todo_id,
+                doing_id,
+                done_id
+            );
+            bot.send_message(chat_id, message).await?;
+        }
+        Err(e) => {
+            let error_message = format!("❌ Error testing Trello configuration: {}", e);
+            bot.send_message(chat_id, error_message).await?;
+        }
+    }
+    Ok(())
 }

@@ -1,27 +1,27 @@
 use crate::error::AppError;
-use crate::models::trello::{TrelloCard, TrelloList, TrelloConfig};
+use crate::models::trello::{ TrelloCard, TrelloList, TrelloConfig };
 use reqwest::Client;
 
-pub async fn check_trello_lists(config: &TrelloConfig) -> Result<(String, String, String), AppError> {
+pub async fn check_trello_lists(
+    config: &TrelloConfig
+) -> Result<(String, String, String), AppError> {
     let client = Client::new();
     let url = format!(
         "https://api.trello.com/1/boards/{}/lists?key={}&token={}",
-        config.board, config.key, config.token
+        config.board,
+        config.key,
+        config.token
     );
 
     let response = client.get(&url).send().await?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await?;
         return Err(AppError::from(format!("Trello API error: Status {}, Body: {}", status, text)));
     }
 
-    let response_text = response.text().await?;
-    println!("Trello API response for lists: {}", response_text);
-
-    let lists: Vec<TrelloList> = serde_json::from_str(&response_text)
-        .map_err(|e| AppError::from(format!("Failed to parse Trello lists: {}", e)))?;
+    let lists: Vec<TrelloList> = response.json().await?;
 
     let mut todo_id = None;
     let mut doing_id = None;
@@ -29,16 +29,27 @@ pub async fn check_trello_lists(config: &TrelloConfig) -> Result<(String, String
 
     for list in lists {
         match list.name.as_str() {
-            "ToDo" => todo_id = Some(list.id),
-            "Doing" => doing_id = Some(list.id),
-            "Done" => done_id = Some(list.id),
+            "ToDo" => {
+                todo_id = Some(list.id);
+            }
+            "Doing" => {
+                doing_id = Some(list.id);
+            }
+            "Done" => {
+                done_id = Some(list.id);
+            }
             _ => {}
         }
     }
 
     match (todo_id, doing_id, done_id) {
         (Some(todo), Some(doing), Some(done)) => Ok((todo, doing, done)),
-        _ => Err(AppError::from("Không tìm thấy đủ 3 danh sách 'ToDo', 'Doing' và 'Done'".to_string())),
+        _ =>
+            Err(
+                AppError::from(
+                    "Không tìm thấy đủ 3 danh sách 'ToDo', 'Doing' và 'Done'".to_string()
+                )
+            ),
     }
 }
 
@@ -46,11 +57,13 @@ pub async fn get_trello_cards(config: &TrelloConfig) -> Result<Vec<TrelloCard>, 
     let client = Client::new();
     let url = format!(
         "https://api.trello.com/1/boards/{}/cards?key={}&token={}",
-        config.board, config.key, config.token
+        config.board,
+        config.key,
+        config.token
     );
 
     let response = client.get(&url).send().await?;
-    
+
     if !response.status().is_success() {
         let status = response.status();
         let text = response.text().await?;
@@ -60,14 +73,19 @@ pub async fn get_trello_cards(config: &TrelloConfig) -> Result<Vec<TrelloCard>, 
     let response_text = response.text().await?;
     //println!("Trello API response for cards: {}", response_text);
 
-    let cards: Vec<TrelloCard> = serde_json::from_str(&response_text)
+    let cards: Vec<TrelloCard> = serde_json
+        ::from_str(&response_text)
         .map_err(|e| AppError::from(format!("Failed to parse Trello cards: {}", e)))?;
 
     Ok(cards)
 }
 
-pub fn map_cards_to_lists(cards: Vec<TrelloCard>, todo_id: &str, doing_id: &str, done_id: &str) 
-    -> (Vec<TrelloCard>, Vec<TrelloCard>, Vec<TrelloCard>) {
+pub fn map_cards_to_lists(
+    cards: Vec<TrelloCard>,
+    todo_id: &str,
+    doing_id: &str,
+    done_id: &str
+) -> (Vec<TrelloCard>, Vec<TrelloCard>, Vec<TrelloCard>) {
     let mut todo_cards = Vec::new();
     let mut doing_cards = Vec::new();
     let mut done_cards = Vec::new();
