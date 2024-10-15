@@ -2965,6 +2965,7 @@ dependencies = [
  "log",
  "mongodb",
  "pretty_env_logger",
+ "rand",
  "reqwest 0.12.8",
  "serde",
  "serde_json",
