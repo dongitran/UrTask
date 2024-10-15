@@ -11,7 +11,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("0 45 7 * * *", move |_, _| {
+        Job::new_async("0 35 2 * * *", move |_, _| {
             let config = config.clone();
             Box::pin(async move {
                 let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
@@ -23,11 +23,64 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
         })?
     ).await?;
 
+    scheduler.add(
+        Job::new_async("0 15 2 * * *", move |_, _| {
+            let config = config.clone();
+            Box::pin(async move {
+                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                println!("Running morning reminder job at {:?}", now);
+                if let Err(e) = run_reminder_job(&config, "morning").await {
+                    eprintln!("Error in morning reminder job: {:?}", e);
+                }
+            })
+        })?
+    ).await?;
+
+    scheduler.add(
+        Job::new_async("0 0 10 * * *", move |_, _| {
+            let config = config.clone();
+            Box::pin(async move {
+                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                println!("Running evening reminder job at {:?}", now);
+                if let Err(e) = run_reminder_job(&config, "evening").await {
+                    eprintln!("Error in evening reminder job: {:?}", e);
+                }
+            })
+        })?
+    ).await?;
+
     scheduler.start().await?;
 
     loop {
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
     }
+}
+
+async fn run_reminder_job(config: &Config, time_of_day: &str) -> Result<(), AppError> {
+    let client = database::connect_to_mongodb(&config.mongodb_uri).await?;
+    let trello_configs = database::get_trello_configs(&client).await?;
+
+    for trello_config in trello_configs {
+        let message = match time_of_day {
+            "morning" =>
+                "Good morning! Don't forget to update your Trello board with your tasks for today.",
+            "evening" =>
+                "Good evening! Please make sure your Trello board is up to date before finishing your day.",
+            _ => "It's time to update your Trello board!",
+        };
+
+        if
+            let Err(e) = telegram::send_message(
+                &config.telegram_bot_token,
+                trello_config.user_id,
+                message
+            ).await
+        {
+            eprintln!("Error sending reminder to user {}: {:?}", trello_config.user_id, e);
+        }
+    }
+
+    Ok(())
 }
 
 async fn run_cron_job(config: &Config) -> Result<(), AppError> {
