@@ -7,6 +7,8 @@ use crate::error::AppError;
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "UrTask Bot supports the following commands:")]
 pub enum Command {
+    #[command(description = "Start the bot and get a welcome message")]
+    Start,
     #[command(description = "Show the list of available commands")]
     Help,
     #[command(
@@ -21,6 +23,18 @@ pub async fn answer(
     mongodb_client: mongodb::Client
 ) -> ResponseResult<()> {
     match cmd {
+        Command::Start => {
+            bot.send_message(
+                msg.chat.id,
+                "👋 Welcome to UrTask Bot!\n\n\
+            🚀 UrTask is an automated tool that bridges Trello and Telegram, providing daily summaries of your Trello activities.\n\n\
+            🔧 To get started, you need to set up your Trello configuration using the /setconfig command.\n\n\
+            📌 Use the following format:\n\
+            /setconfig your_board_id-your_api_key-your_api_token\n\n\
+            🔑 You can find your Trello API key and token at: https://trello.com/app-key\n\n\
+            ❓ Use /help to see all available commands."
+            ).await?;
+        }
         Command::Help => {
             bot.send_message(
                 msg.chat.id,
