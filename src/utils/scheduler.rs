@@ -11,7 +11,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("0 35 7 * * *", move |_, _| {
+        Job::new_async("0 45 7 * * *", move |_, _| {
             let config = config.clone();
             Box::pin(async move {
                 let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
