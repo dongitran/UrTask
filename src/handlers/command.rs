@@ -41,7 +41,7 @@ pub async fn answer(
                 "UrTask Bot helps you manage your Trello tasks and send daily reports. Available commands:\n\n\
                 /help - Show this help message\n\
                 /setconfig - Set up your Trello configuration. Usage: /setconfig board_id-api_key-api_token\n\n\
-                After setting up, you'll receive daily reports of your Trello tasks at 7:31 AM (GMT+7)."
+                After setting up, you'll receive daily reports of your Trello tasks at 9:30 AM (GMT+7)."
             ).await?;
         }
         Command::SetConfig(config_str) => {
