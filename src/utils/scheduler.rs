@@ -3,19 +3,18 @@ use crate::services::{ database, trello, telegram };
 use crate::error::AppError;
 use crate::models::trello::{ TrelloConfig, TrelloCard };
 use std::sync::Arc;
-use tokio_cron_scheduler::{Job, JobScheduler};
-use chrono::{Local, Datelike, FixedOffset, TimeZone};
+use chrono::{ Utc, FixedOffset, TimeZone, Local };
+use tokio_cron_scheduler::{ JobScheduler, Job };
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let scheduler = JobScheduler::new().await?;
-
-    let gmt7 = FixedOffset::east(7 * 3600);
+    let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("* * * * *", move |_, _| {
+        Job::new_async("0 55 0 * * *", move |_, _| {
             let config = config.clone();
             Box::pin(async move {
-                let now = gmt7.from_utc_datetime(&Local::now().naive_utc());
+                let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
                 println!("Running cron job at {:?}", now);
                 if let Err(e) = run_cron_job(&config).await {
                     eprintln!("Error in cron job: {:?}", e);
@@ -26,7 +25,9 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
 
     scheduler.start().await?;
 
-    Ok(())
+    loop {
+        tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+    }
 }
 
 async fn run_cron_job(config: &Config) -> Result<(), AppError> {
@@ -102,11 +103,16 @@ async fn process_user_config(
 }
 
 fn generate_report_message(
-    todo_cards: &[TrelloCard],
+    _todo_cards: &[TrelloCard],
     doing_cards: &[TrelloCard],
     done_cards: &[&TrelloCard]
 ) -> String {
-    let yesterday = Local::now().date().pred().format("%d/%m").to_string();
+    let yesterday = Local::now()
+        .date_naive()
+        .pred_opt()
+        .expect("Invalid date")
+        .format("%d/%m")
+        .to_string();
     let mut message = format!("Hôm trước ({}):\n", yesterday);
 
     for card in done_cards {

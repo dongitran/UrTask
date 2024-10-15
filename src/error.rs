@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use bson::ser::Error as BsonSerError;
+use tokio_cron_scheduler::JobSchedulerError;
 
 #[derive(Debug)]
 pub struct AppError(String);
@@ -31,9 +32,14 @@ impl From<reqwest::Error> for AppError {
     }
 }
 
-// Thêm implementation mới này
 impl From<BsonSerError> for AppError {
     fn from(error: BsonSerError) -> Self {
         AppError(error.to_string())
     }
+}
+
+impl From<JobSchedulerError> for AppError {
+  fn from(error: JobSchedulerError) -> Self {
+      AppError(error.to_string())
+  }
 }
