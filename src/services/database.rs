@@ -1,10 +1,10 @@
 use crate::error::AppError;
 use crate::models::trello::TrelloConfig;
-use mongodb::{Client, options::ClientOptions, Collection};
-use mongodb::bson::{doc, DateTime, Document};
+use mongodb::{ Client, options::ClientOptions, Collection };
+use mongodb::bson::{ doc, DateTime, Document };
 use futures_util::stream::TryStreamExt;
-use chrono::{Utc, DateTime as ChronoDateTime};
-use serde::{Serialize, Deserialize};
+use chrono::{ Utc, DateTime as ChronoDateTime };
+use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigLog {
@@ -32,6 +32,19 @@ pub async fn get_trello_configs(client: &Client) -> Result<Vec<TrelloConfig>, Ap
     }
 
     Ok(configs)
+}
+
+pub async fn get_trello_config(
+    client: &Client,
+    user_id: i64
+) -> Result<Option<TrelloConfig>, AppError> {
+    let database = client.database("urtask");
+    let collection = database.collection::<TrelloConfig>("trello_configs");
+
+    let filter = doc! { "userId": user_id };
+    let result = collection.find_one(filter, None).await?;
+
+    Ok(result)
 }
 
 pub async fn save_trello_config(client: &Client, config: &TrelloConfig) -> Result<(), AppError> {
