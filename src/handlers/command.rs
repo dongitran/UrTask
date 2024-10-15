@@ -32,6 +32,11 @@ pub async fn answer(
             📌 Use the following format:\n\
             /setconfig your_board_id-your_api_key-your_api_token\n\n\
             🔑 You can find your Trello API key and token at: https://trello.com/app-key\n\n\
+            📋 Important: Your Trello board must have three lists named exactly:\n\
+            • ToDo\n\
+            • Doing\n\
+            • Done\n\
+            UrTask will use these lists to generate your daily reports.\n\n\
             ❓ Use /help to see all available commands."
             ).await?;
         }
