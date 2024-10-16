@@ -3,6 +3,8 @@ use teloxide::utils::command::BotCommands;
 use crate::services::{ database, trello };
 use crate::models::trello::TrelloConfig;
 use crate::error::AppError;
+use chrono::Utc;
+use std::fmt;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "UrTask Bot supports the following commands:")]
@@ -18,12 +20,45 @@ pub enum Command {
     TestConfig,
 }
 
+impl fmt::Display for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Command::Start => write!(f, "start"),
+            Command::Help => write!(f, "help"),
+            Command::SetConfig(_) => write!(f, "setconfig"),
+            Command::TestConfig => write!(f, "testconfig"),
+        }
+    }
+}
+
 pub async fn answer(
     bot: Bot,
     msg: Message,
     cmd: Command,
     mongodb_client: mongodb::Client
 ) -> ResponseResult<()> {
+    // Log user interaction
+    let user_id = msg
+        .from()
+        .map(|user| user.id.0 as i64)
+        .unwrap_or(0);
+    let user_name = msg
+        .from()
+        .map(|user| user.full_name())
+        .unwrap_or_else(|| "Unknown User".to_string());
+    let command_name = cmd.to_string();
+
+    let log = database::UserInteractionLog {
+        user_id,
+        user_name,
+        command: command_name,
+        timestamp: Utc::now(),
+    };
+
+    if let Err(e) = database::log_user_interaction(&mongodb_client, log).await {
+        eprintln!("Failed to log user interaction: {:?}", e);
+    }
+
     match cmd {
         Command::Start => {
             bot.send_message(

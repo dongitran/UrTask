@@ -103,3 +103,22 @@ pub async fn log_config_change(client: &Client, log_entry: &ConfigLog) -> Result
     collection.insert_one(log_entry, None).await?;
     Ok(())
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserInteractionLog {
+    pub user_id: i64,
+    pub user_name: String,
+    pub command: String,
+    pub timestamp: ChronoDateTime<Utc>,
+}
+
+pub async fn log_user_interaction(
+    client: &Client,
+    log: UserInteractionLog
+) -> Result<(), AppError> {
+    let database = client.database("urtask");
+    let collection = database.collection::<UserInteractionLog>("user_interaction_logs");
+
+    collection.insert_one(log, None).await?;
+    Ok(())
+}
