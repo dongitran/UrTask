@@ -3,17 +3,16 @@ use crate::services::{ database, trello, telegram };
 use crate::error::AppError;
 use crate::models::trello::{ TrelloConfig, TrelloCard };
 use std::sync::Arc;
-use chrono::{Utc, FixedOffset, TimeZone, Local, Datelike};
+use chrono::{ Utc, FixedOffset, TimeZone, Local, Datelike, NaiveDate, Duration, Weekday };
 use tokio_cron_scheduler::{ JobScheduler, Job };
 use rand::seq::SliceRandom;
-use chrono::Weekday;
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let scheduler = JobScheduler::new().await?;
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("0 15 3 * * 2-6", {
+        Job::new_async("0 10 3 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -368,17 +367,25 @@ async fn process_user_config(
     Ok(())
 }
 
+fn get_previous_work_day(date: NaiveDate) -> NaiveDate {
+    let mut current = date;
+
+    if current.weekday() == Weekday::Mon {
+        current - Duration::days(3)
+    } else {
+        current - Duration::days(1)
+    }
+}
+
 fn generate_report_message(
     _todo_cards: &[TrelloCard],
     doing_cards: &[TrelloCard],
     done_cards: &[&TrelloCard]
 ) -> String {
-    let yesterday = Local::now()
-        .date_naive()
-        .pred_opt()
-        .expect("Invalid date")
-        .format("%d/%m")
-        .to_string();
+    let today = Local::now().date_naive();
+    let previous_work_day = get_previous_work_day(today);
+    let yesterday = previous_work_day.format("%d/%m").to_string();
+
     let mut message = format!("Hôm trước ({}):\n", yesterday);
 
     for card in done_cards {
