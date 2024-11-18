@@ -381,15 +381,15 @@ pub fn generate_report_message(
         .expect("Invalid date")
         .format("%d/%m")
         .to_string();
-    let mut message = format!("Hôm trước ({}):\n", yesterday);
+    let mut message = format!("*Hôm trước ({})*:\n", yesterday);
 
     for card in done_cards {
-        message.push_str(&format!("* {}\n", card.name));
+        message.push_str(&format!("• {}\n", card.name));
     }
 
-    message.push_str("\nHôm nay:\n");
+    message.push_str("\n*Hôm nay*:\n");
     for card in doing_cards {
-        message.push_str(&format!("* {}\n", card.name));
+        message.push_str(&format!("• {}\n", card.name));
     }
 
     message

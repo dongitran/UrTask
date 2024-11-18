@@ -90,7 +90,8 @@ pub async fn answer(
               🚀 /start - Get started with UrTask Bot\n\n\
               ❓ /help - Show this help message\n\n\
               ⚙️ /setconfig - Set up your Trello configuration.\n Usage: /setconfig board_id-api_key-api_token\n\n\
-              🧪 /testconfig - Test your current Trello configuration\n\n\n\
+              🧪 /testconfig - Test your current Trello configuration\n\n\
+              📊 /reportnow - Get an immediate report of your tasks\n\n\n\
               📅 After setting up, you'll receive:\n\
               • Daily reports at 9:35 AM (GMT+7)\n\
               • Morning reminders at 9:15 AM (GMT+7)\n\
