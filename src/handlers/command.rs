@@ -2,9 +2,12 @@ use teloxide::prelude::*;
 use teloxide::utils::command::BotCommands;
 use crate::services::{ database, trello };
 use crate::models::trello::TrelloConfig;
+use crate::models::trello::TrelloCard;
 use crate::error::AppError;
 use chrono::Utc;
 use std::fmt;
+use crate::services::telegram;
+use crate::utils::scheduler;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "UrTask Bot supports the following commands:")]
@@ -18,6 +21,8 @@ pub enum Command {
     )] SetConfig(String),
     #[command(description = "Test your current Trello configuration")]
     TestConfig,
+    #[command(description = "Get an immediate report of your tasks")]
+    ReportNow,
 }
 
 impl fmt::Display for Command {
@@ -27,6 +32,7 @@ impl fmt::Display for Command {
             Command::Help => write!(f, "help"),
             Command::SetConfig(_) => write!(f, "setconfig"),
             Command::TestConfig => write!(f, "testconfig"),
+            Command::ReportNow => write!(f, "reportnow"),
         }
     }
 }
@@ -138,6 +144,47 @@ pub async fn answer(
                     bot.send_message(
                         msg.chat.id,
                         "❌ Error retrieving Trello configuration. Please try again later."
+                    ).await?;
+                }
+            }
+        }
+        Command::ReportNow => {
+            let user_id = msg.chat.id.0;
+            match database::get_trello_config(&mongodb_client, user_id).await {
+                Ok(Some(config)) => {
+                    let now = chrono::Local::now();
+                    let cutoff_time = now.date_naive().and_hms_opt(9, 35, 0).unwrap();
+
+                    if now.naive_local() < cutoff_time {
+                        if let Err(e) = database::log_manual_report(&mongodb_client, user_id).await {
+                            eprintln!("Failed to log manual report: {}", e);
+                        }
+                    }
+
+                    if
+                        let Err(e) = scheduler::process_user_config(
+                            &config,
+                            &bot.token(),
+                            &mongodb_client,
+                            true
+                        ).await
+                    {
+                        bot.send_message(
+                            msg.chat.id,
+                            format!("Error generating report: {}", e)
+                        ).await?;
+                    }
+                }
+                Ok(None) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        "No Trello configuration found. Please set up using /setconfig"
+                    ).await?;
+                }
+                Err(e) => {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("Error retrieving configuration: {}", e)
                     ).await?;
                 }
             }
