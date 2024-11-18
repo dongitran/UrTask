@@ -13,7 +13,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("35 28 18 * * 1-5", {
+        Job::new_async("0 35 2 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -29,7 +29,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 15 2 * * 1-5", {
+        Job::new_async("0 10 3 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -45,7 +45,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 0 10 * * 1-5", {
+        Job::new_async("0 0 10 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -54,6 +54,22 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
                     println!("Running evening reminder job at {:?}", now);
                     if let Err(e) = run_reminder_job(&config, "evening").await {
                         eprintln!("Error in evening reminder job: {:?}", e);
+                    }
+                })
+            }
+        })?
+    ).await?;
+
+    scheduler.add(
+        Job::new_async("0 45 2 * * 2-6", {
+            let config = config.clone();
+            move |_, _| {
+                let config = config.clone();
+                Box::pin(async move {
+                    let now = gmt7.from_utc_datetime(&Utc::now().naive_utc());
+                    println!("Running reportnow reminder at {:?}", now);
+                    if let Err(e) = run_reportnow_reminder(&config).await {
+                        eprintln!("Error in reportnow reminder: {:?}", e);
                     }
                 })
             }
@@ -393,4 +409,29 @@ pub fn generate_report_message(
     }
 
     message
+}
+
+async fn run_reportnow_reminder(config: &Config) -> Result<(), AppError> {
+    let client = database::connect_to_mongodb(&config.mongodb_uri).await?;
+    let trello_configs = database::get_trello_configs(&client).await?;
+    let message =
+        "🚀 *Tính năng mới*: Khám phá ngay /reportnow!\n\n📊 Xem báo cáo công việc của bạn bất cứ lúc nào - không cần chờ đợi báo cáo tự động.\n\n✨ Thử ngay thôi!";
+
+    for trello_config in trello_configs {
+        if
+            let Err(e) = telegram::send_message(
+                &config.telegram_bot_token,
+                trello_config.user_id,
+                message
+            ).await
+        {
+            eprintln!(
+                "Error sending reportnow reminder to user {}: {:?}",
+                trello_config.user_id,
+                e
+            );
+        }
+    }
+
+    Ok(())
 }
