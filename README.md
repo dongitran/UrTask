@@ -11,6 +11,7 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 - ⏰ **Customizable Reporting Time**: Users can set their preferred time to receive daily reports.
 - 🔄 **Easy Sharing**: Facilitates easy forwarding of reports to company channels or groups for team-wide updates.
 - 🔒 **Secure Authentication**: Utilizes Trello API keys and tokens for secure access to user boards.
+- 📊 **On-Demand Reports**: Get immediate task reports with the /reportnow command.
 
 ## 🔧 How It Works
 
@@ -19,14 +20,6 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 3. 📝 **Report Generation**: It compiles a report of tasks moved to "Done" since the last report, current "Doing" tasks, and upcoming "To Do" items.
 4. 📬 **Delivery**: The generated report is sent to the user via the UrTask Telegram bot.
 5. 📢 **Sharing (Optional)**: Users can easily forward the report to their team or company reporting channels.
-
-## 💼 Benefits
-
-- ⏱️ **Time-Saving**: Eliminates the need for manual daily report compilation.
-- 📈 **Improved Accountability**: Provides a clear, daily overview of accomplished and ongoing tasks.
-- 🎯 **Enhanced Planning**: Helps in better task prioritization and workload management.
-- 🔗 **Seamless Integration**: Works within the existing workflow of Trello and Telegram users.
-- 🔍 **Transparency**: Facilitates easy sharing of progress with team members and managers.
 
 ## 🛠️ Technical Stack
 
@@ -48,7 +41,7 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/urtask.git
+   git clone https://github.com/dongitran/urtask.git
    cd urtask
    ```
 
@@ -76,7 +69,13 @@ UrTask is an automated tool designed to streamline the process of daily reportin
    ```
    /setconfig your_board_id-your_api_key-your_api_token
    ```
-3. The bot will confirm successful configuration and start sending daily reports at the scheduled time.
+3. Available commands:
+   - `/start` - Get started with the bot
+   - `/help` - Show all available commands
+   - `/setconfig` - Configure your Trello integration
+   - `/testconfig` - Test your configuration
+   - `/reportnow` - Get an immediate report of your tasks
+4. The bot will automatically send daily reports at scheduled times.
 
 ## 🔧 Troubleshooting
 

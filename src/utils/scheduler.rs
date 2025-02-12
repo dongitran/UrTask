@@ -3,17 +3,16 @@ use crate::services::{ database, trello, telegram };
 use crate::error::AppError;
 use crate::models::trello::{ TrelloConfig, TrelloCard };
 use std::sync::Arc;
-use chrono::{Utc, FixedOffset, TimeZone, Local, Datelike};
+use chrono::{ Utc, FixedOffset, TimeZone, Local, Datelike, NaiveDate, Duration, Weekday };
 use tokio_cron_scheduler::{ JobScheduler, Job };
 use rand::seq::SliceRandom;
-use chrono::Weekday;
 
 pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     let scheduler = JobScheduler::new().await?;
     let gmt7 = FixedOffset::east_opt(7 * 3600).expect("Invalid timezone");
 
     scheduler.add(
-        Job::new_async("0 35 2 * * 1-5", {
+        Job::new_async("0 10 3 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -29,7 +28,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 15 2 * * 1-5", {
+        Job::new_async("0 35 2 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -45,7 +44,7 @@ pub async fn run_scheduler(config: Arc<Config>) -> Result<(), AppError> {
     ).await?;
 
     scheduler.add(
-        Job::new_async("0 0 10 * * 1-5", {
+        Job::new_async("0 0 10 * * 2-6", {
             let config = config.clone();
             move |_, _| {
                 let config = config.clone();
@@ -300,20 +299,22 @@ async fn run_cron_job(config: &Config) -> Result<(), AppError> {
     let client = database::connect_to_mongodb(&config.mongodb_uri).await?;
     let trello_configs = database::get_trello_configs(&client).await?;
 
-    println!("Found {} Trello configurations", trello_configs.len());
-
     for trello_config in trello_configs {
-        println!("Processing config for user {}", trello_config.user_id);
-        match process_user_config(&trello_config, &config.telegram_bot_token, &client).await {
-            Ok(_) =>
-                println!("Processed user config successfully for user {}", trello_config.user_id),
-            Err(e) => {
+        let has_reported = database::has_reported_today(&client, trello_config.user_id).await?;
+        if !has_reported {
+            if
+                let Err(e) = process_user_config(
+                    &trello_config,
+                    &config.telegram_bot_token,
+                    &client,
+                    true
+                ).await
+            {
                 let error_message = format!(
                     "Error processing user config for user {}: {:?}",
                     trello_config.user_id,
                     e
                 );
-                println!("{}", error_message);
                 database::log_error(&client, &error_message).await?;
             }
         }
@@ -322,14 +323,13 @@ async fn run_cron_job(config: &Config) -> Result<(), AppError> {
     Ok(())
 }
 
-async fn process_user_config(
+pub async fn process_user_config(
     config: &TrelloConfig,
     bot_token: &str,
-    client: &mongodb::Client
+    client: &mongodb::Client,
+    force_send: bool
 ) -> Result<(), AppError> {
     let (todo_id, doing_id, done_id) = trello::check_trello_lists(config).await?;
-    println!("List IDs - ToDo: {}, Doing: {}, Done: {}", todo_id, doing_id, done_id);
-
     let cards = trello::get_trello_cards(config).await?;
     let (todo_cards, doing_cards, done_cards) = trello::map_cards_to_lists(
         cards,
@@ -338,13 +338,14 @@ async fn process_user_config(
         &done_id
     );
 
-    println!(
-        "Found {} todo, {} doing, and {} done cards for user {}",
-        todo_cards.len(),
-        doing_cards.len(),
-        done_cards.len(),
-        config.user_id
-    );
+    let today_reported = database::get_today_reported_tasks(client).await?;
+
+    let mut reported_today_cards = Vec::new();
+    for card in &done_cards {
+        if today_reported.contains(&card.id) {
+            reported_today_cards.push(card);
+        }
+    }
 
     let mut new_done_cards = Vec::new();
     for card in &done_cards {
@@ -354,40 +355,48 @@ async fn process_user_config(
         }
     }
 
-    println!("Found {} new done cards for user {}", new_done_cards.len(), config.user_id);
-
-    if !new_done_cards.is_empty() || !doing_cards.is_empty() || !todo_cards.is_empty() {
-        let message = generate_report_message(&todo_cards, &doing_cards, &new_done_cards);
-        println!("Sending message to user {}: {}", config.user_id, message);
-        telegram::send_message(bot_token, config.user_id, &message).await?;
-        println!("Message sent successfully to user {}", config.user_id);
+    let final_done_cards = if force_send {
+        [&reported_today_cards[..], &new_done_cards[..]].concat()
     } else {
-        println!("No changes to report for user {}", config.user_id);
+        new_done_cards
+    };
+
+    if !final_done_cards.is_empty() || !doing_cards.is_empty() || !todo_cards.is_empty() {
+        let message = generate_report_message(&todo_cards, &doing_cards, &final_done_cards);
+        telegram::send_message(bot_token, config.user_id, &message).await?;
     }
 
     Ok(())
 }
 
-fn generate_report_message(
+fn get_previous_work_day(date: NaiveDate) -> NaiveDate {
+    let mut current = date;
+
+    if current.weekday() == Weekday::Mon {
+        current - Duration::days(3)
+    } else {
+        current - Duration::days(1)
+    }
+}
+
+pub fn generate_report_message(
     _todo_cards: &[TrelloCard],
     doing_cards: &[TrelloCard],
     done_cards: &[&TrelloCard]
 ) -> String {
-    let yesterday = Local::now()
-        .date_naive()
-        .pred_opt()
-        .expect("Invalid date")
-        .format("%d/%m")
-        .to_string();
-    let mut message = format!("Hôm trước ({}):\n", yesterday);
+    let today = Local::now().date_naive();
+    let previous_work_day = get_previous_work_day(today);
+    let yesterday = previous_work_day.format("%d/%m").to_string();
+
+    let mut message = format!("*Hôm trước ({})*:\n", yesterday);
 
     for card in done_cards {
-        message.push_str(&format!("* {}\n", card.name));
+        message.push_str(&format!("• {}\n", card.name));
     }
 
-    message.push_str("\nHôm nay:\n");
+    message.push_str("\n*Hôm nay*:\n");
     for card in doing_cards {
-        message.push_str(&format!("* {}\n", card.name));
+        message.push_str(&format!("• {}\n", card.name));
     }
 
     message
