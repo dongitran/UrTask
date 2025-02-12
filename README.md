@@ -41,7 +41,7 @@ UrTask is an automated tool designed to streamline the process of daily reportin
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/urtask.git
+   git clone https://github.com/dongitran/urtask.git
    cd urtask
    ```
 
