@@ -77,18 +77,6 @@ UrTask is an automated tool designed to streamline the process of daily reportin
    - `/reportnow` - Get an immediate report of your tasks
 4. The bot will automatically send daily reports at scheduled times.
 
-## 🔧 Troubleshooting
-
-- 🔔 If you're not receiving messages, check your Telegram bot token and ensure the bot has been started in your Telegram client.
-- 🔌 For database connection issues, verify your MongoDB connection string in the `.env` file.
-- 🔑 Make sure your Trello API key and token have the necessary permissions to access your board.
-
-For more detailed troubleshooting, check the application logs or file an issue on the GitHub repository.
-
-## 🤝 Contributing
-
-We welcome contributions to UrTask! Please read our contributing guidelines to get started.
-
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
